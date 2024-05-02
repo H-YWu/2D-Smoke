@@ -68,6 +68,7 @@ add_executable(${EXECUTABLE_NAME} ${SOURCES})
 target_include_directories(${EXECUTABLE_NAME} PRIVATE ${IMGUI_DIR})
 target_include_directories(${EXECUTABLE_NAME} PRIVATE ${IMGUI_BACKENDS_DIR})
 target_include_directories(${EXECUTABLE_NAME} PRIVATE ${GLFW_DIR}/include)
+target_include_directories(${EXECUTABLE_NAME} PRIVATE include)
 
 # Link libraries
 target_link_libraries(${EXECUTABLE_NAME} PRIVATE ${LIBS})
