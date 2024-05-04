@@ -17,8 +17,8 @@ class SmokeSolver2D {
 public:
     SmokeSolver2D(
         int grid_width, int grid_height,
-        int dx, int render_cell_size,
-        double alpha, double beta,
+        int dx, int render_cell_size=1,
+        double alpha=0.5, double beta=0.5,
         double ambient_T=273.0, double ambient_s=0.0,
         double wind_u=1.0, double wind_v=0.0,
         double rate_T=0.1, double rate_s=0.1, double T_target=300
@@ -53,22 +53,20 @@ private:
 private:
     static const double _g;
     static const double _rho0;
-    // Boundary
-    double _amb_T;
-    double _amb_s;
-    double _wind_u;
-    double _wind_v;
+    // Grid resolution
+    int _nx, _ny;
+    // Cell size 
+    int _dx;
+    // Rendering
+    int _rc_sz;
     // Smoke parameters
-    double _alpha;
-    double _beta;
+    double _alpha, _beta;
+    // Boundary
+    double _amb_T, _amb_s;
+    double _wind_u, _wind_v;
     // Smoke Sources
     double _r_T, _r_s, _T_tar;
     std::vector<std::pair<int,int>> _sources;
-    // Grid resolution
-    int _nx;
-    int _ny;
-    // Cell size 
-    int _dx;
     // MAC cell
     std::vector<std::vector<CellLabel>> _label;
     std::vector<std::vector<double>> _pressure;
@@ -80,8 +78,6 @@ private:
     std::vector<std::vector<double>> _s;    // concentration
     std::vector<std::vector<double>> _T_nxt;    // next step temperature
     std::vector<std::vector<double>> _s_nxt;    // next step concentration
-    // Rendering
-    int _rc_sz;
 };
 
 #endif // SIMULATE_2D_SMOKE_H

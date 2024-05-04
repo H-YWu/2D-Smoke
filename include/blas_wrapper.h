@@ -6,7 +6,8 @@
 // For the moment, no complex number support, and many routines have been dropped.
 
 #include <vector>
-#include "cblas.h"
+//#include "cblas.h"
+#include "mkl_cblas.h"
 
 namespace BLAS{
 

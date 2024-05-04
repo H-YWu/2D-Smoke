@@ -20,9 +20,12 @@ SmokeSolver2D::SmokeSolver2D(
     int grid_width, int grid_height,
     int dx, int render_cell_size,
     double alpha, double beta,
-    double ambient_T=273.0, double ambient_s=0.0,
-    double wind_u=1.0, double wind_v=0.0,
-    double rate_T=0.1, double rate_s=0.1, double T_target=300
+    // double ambient_T=273.0, double ambient_s=0.0,
+    // double wind_u=1.0, double wind_v=0.0,
+    // double rate_T=0.1, double rate_s=0.1, double T_target=300
+    double ambient_T, double ambient_s,
+    double wind_u, double wind_v,
+    double rate_T, double rate_s, double T_target
 )
     : _nx(grid_width), _ny(grid_height)
     , _dx(dx), _rc_sz(render_cell_size)
@@ -46,10 +49,9 @@ void SmokeSolver2D::init() {
     // Smoke sources
     _sources.emplace_back(std::make_pair(0, static_cast<int>(0.25 * _ny)));
 
-    for (int x = 0; x < _nx; x ++) {
-        for (int y = 0; y < _ny; y ++) {
+    for (int x = 0; x <= _nx; x ++) {
+        for (int y = 0; y <= _ny; y ++) {
             _label[x][y] = FLUID;
-            // TODO
             _T[x][y] = 0.0;
             _s[x][y] = 0.0;
             _pressure[x][y] = 0.0;
@@ -57,14 +59,12 @@ void SmokeSolver2D::init() {
     }
     for (int x = 0; x <= _nx; x ++) {
         for (int y = 0; y < _ny; y ++) {
-            // TODO
-            _u[x][y] = 0.0;
-            _u_nxt[x][y] = 0.0;
+            _u[x][y] = 1.0;
+            _u_nxt[x][y] = 1.0;
         }
     }
     for (int x = 0; x < _nx; x ++) {
         for (int y = 0; y <= _ny; y ++) {
-            // TODO
             _v[x][y] = 0.0;
             _v_nxt[x][y] = 0.0;
         }
@@ -94,7 +94,7 @@ void SmokeSolver2D::step() {
 
 
 void SmokeSolver2D::step_source(double dt) {
-    for (int i = 0; i < _sources.size(); i ++) {
+    for (long unsigned int i = 0; i < _sources.size(); i ++) {
         int x = _sources[i].first;
         int y = _sources[i].second;
         _T[x][y] = _T[x][y] + (1.0 - std::exp(-_r_T * dt)) * (_T_tar - _T[x][y]);
@@ -194,7 +194,7 @@ void SmokeSolver2D::solve_pressure(double dt) {
     // Construct the linear system
     int sz = _nx*_ny;
     SparseMatrix<double> A(sz);
-    std::vector<double> x(sz);
+    std::vector<double> result(sz);
     std::vector<double> b(sz);
     double scale_lhs = dt / (_rho0 * _dx * _dx);
     double scale_rhs = 1.0 / _dx;
@@ -255,15 +255,16 @@ void SmokeSolver2D::solve_pressure(double dt) {
         }
     }
     // Solve the linear system
-    PCGSolver solver;
+    PCGSolver<double> solver;
     double res;
     int iters;
-    solver.solve(A, b, x, T res, iters); 
+    solver.solve(A, b, result, res, iters); 
     for (int x = 0; x < _nx; x ++) {
         for (int y = 0; y < _ny; y ++) {
-            _pressure[x][y] = x[x*_nx+y];
+            _pressure[x][y] = result[x*_nx+y];
         }
     }
+    // TODO: check solver
 }
 
 void SmokeSolver2D::update_uv_incompressible(double dt) {
@@ -324,20 +325,19 @@ void SmokeSolver2D::blerp_uv(double x, double y, double &u, double &v) {
 }
 
 void SmokeSolver2D::cell_uv(QuantityType qt, int x_G, int y_G, double &u_G, double &v_G) {
-    double u_G, v_G;
     if (qt == U) {
-        double u_G = _u[x_G][y_G];
-        double v_G = 0.25 * (
+        u_G = _u[x_G][y_G];
+        v_G = 0.25 * (
             v_with_bnd(x_G-1, y_G) + v_with_bnd(x_G-1, y_G+1) +
             v_with_bnd(x_G, y_G) + v_with_bnd(x_G, y_G+1)
         );
     }
     if (qt == V) {
-        double u_G = 0.25 * (
+        u_G = 0.25 * (
             u_with_bnd(x_G-1, y_G) + u_with_bnd(x_G-1, y_G+1) +
             u_with_bnd(x_G, y_G) + u_with_bnd(x_G, y_G+1)
         );
-        double v_G = _v[x_G][y_G];
+        v_G = _v[x_G][y_G];
     }
     else {
         u_G = 0.5 * (_u[x_G][y_G] + _u[x_G+1][y_G]);

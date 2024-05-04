@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.13)
 project(2D-Smoke)
 
 set(CMAKE_CXX_STANDARD 11)
@@ -18,10 +18,6 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -I${IMGUI_DIR} -I${IMGUI_BACK
 set(LIBS "")
 # OpenGL libraries for Linux
 set(LINUX_GL_LIBS -lGL)
-# Set OpenGL ES libraries (if needed)
-#set(OPENGL_ES_LIBS -lGLESv2)
-# Find OpenGL library
-find_package(OpenGL REQUIRED)
 
 # Platform specific 
 if(UNIX AND NOT APPLE)
@@ -31,6 +27,7 @@ if(UNIX AND NOT APPLE)
     pkg_search_module(GLFW REQUIRED glfw3)
     list(APPEND LIBS ${GLFW_STATIC_LIBRARIES})
     include_directories(${GLFW_INCLUDE_DIRS})
+    list(APPEND CMAKE_PREFIX_PATH "/opt/intel/oneapi/mkl/latest/lib/cmake/mkl")
 endif()
 if(APPLE)
     message("Mac OS X")
@@ -39,11 +36,18 @@ if(APPLE)
     link_directories(/usr/local/lib /opt/local/lib /opt/homebrew/lib)
     find_package(glfw3 REQUIRED)
     list(APPEND LIBS glfw)
+    list(APPEND CMAKE_PREFIX_PATH "/opt/intel/oneapi/mkl/latest/lib/cmake/mkl")
 endif()
 if(WIN32)
     message("MinGW")
     list(APPEND LIBS glfw3 gdi32 opengl32 imm32)
+    list(APPEND CMAKE_PREFIX_PATH "C:/Program Files (x86)/Intel/oneAPI/mkl/latest/lib/cmake/mkl")
 endif()
+
+# Set OpenGL ES libraries (if needed)
+#set(OPENGL_ES_LIBS -lGLESv2)
+find_package(OpenGL REQUIRED)
+find_package(MKL CONFIG REQUIRED)
 
 # Source files
 file(GLOB SOURCES
@@ -69,6 +73,9 @@ target_include_directories(${EXECUTABLE_NAME} PRIVATE ${IMGUI_DIR})
 target_include_directories(${EXECUTABLE_NAME} PRIVATE ${IMGUI_BACKENDS_DIR})
 target_include_directories(${EXECUTABLE_NAME} PRIVATE ${GLFW_DIR}/include)
 target_include_directories(${EXECUTABLE_NAME} PRIVATE include)
+target_include_directories(${EXECUTABLE_NAME} PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
 
+target_compile_options(${EXECUTABLE_NAME} PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_COMPILE_OPTIONS>)
 # Link libraries
 target_link_libraries(${EXECUTABLE_NAME} PRIVATE ${LIBS})
+target_link_libraries(${EXECUTABLE_NAME} PUBLIC $<LINK_ONLY:MKL::MKL>)
