@@ -1,5 +1,7 @@
-#ifndef SIMULATE_2D_SMOKE_H
-#define SIMULATE_2D_SMOKE_H
+#ifndef SMOKE_SOLVER_2D_H
+#define SMOKE_SOLVER_2D_H
+
+#include "viewer_2d.h"
 
 #include <vector>
 #include <utility>
@@ -16,12 +18,12 @@ void simulate_2D_Smoke(double *density, int width, int height);
 class SmokeSolver2D {
 public:
     SmokeSolver2D(
-        int grid_width, int grid_height,
-        int dx, int render_cell_size=1,
+        int grid_width, int grid_height, double dx,
         double alpha=0.5, double beta=0.5,
         double ambient_T=273.0, double ambient_s=0.0,
         double wind_u=1.0, double wind_v=0.0,
-        double rate_T=0.1, double rate_s=0.1, double T_target=300
+        double rate_T=0.1, double rate_s=0.1, double T_target=300,
+        int render_cell_size=1
     );
 
     void init();
@@ -31,7 +33,7 @@ public:
 private:
     void step_source(double dt);
 
-    void advect(QuantityType qt, double dt, std::vector<std::vector<double>> &q_nxt);
+    void advect(QuantityType qt, double dt);
     void force(double dt);
     void project(double dt);
 
@@ -57,9 +59,7 @@ private:
     // Grid resolution
     int _nx, _ny;
     // Cell size 
-    int _dx;
-    // Rendering
-    int _rc_sz;
+    double _dx;
     // Smoke parameters
     double _alpha, _beta;
     // Boundary
@@ -79,6 +79,8 @@ private:
     std::vector<std::vector<double>> _s;    // concentration
     std::vector<std::vector<double>> _T_nxt;    // next step temperature
     std::vector<std::vector<double>> _s_nxt;    // next step concentration
+    
+    Viewer2D _viewer;
 };
 
 #endif // SIMULATE_2D_SMOKE_H

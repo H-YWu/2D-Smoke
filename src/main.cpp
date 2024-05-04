@@ -1,6 +1,5 @@
 #include "config.h"
-#include "render2DSmoke.h"
-#include "simulate2DSmoke.h"
+#include "smoke_solver_2d.h"
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -15,6 +14,8 @@
 #if defined(_MSC_VER) && (_MSC_VER >= 1900) && !defined(IMGUI_DISABLE_WIN32_FUNCTIONS)
 #pragma comment(lib, "legacy_stdio_definitions")
 #endif
+
+#include <iostream>
 
 static void glfw_error_callback(int error, const char* description)
 {
@@ -81,9 +82,8 @@ int main(int, char**)
     // GUI state
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
-    // Smoke
-    double *density = new double[grid_w*grid_h];
-    simulate_2D_Smoke(density, grid_w, grid_h);
+    // Smoke solver
+    SmokeSolver2D smoke_solver(grid_w, grid_h, dx);
 
     // Main loop
 #ifdef __EMSCRIPTEN__
@@ -109,15 +109,20 @@ int main(int, char**)
             ImGui::End();
         }
 
+        // Simulate one step
+        // TODO: dt
+        smoke_solver.step();
+
         // Rendering
         ImGui::Render();
         int display_w, display_h;
         glfwGetFramebufferSize(window, &display_w, &display_h);
         glViewport(0, 0, display_w, display_h);
-        glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
+        // glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
+        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        //render_2D_Smoke(window, density, grid_w, grid_h, render_cell_sz);
+        smoke_solver.render();
 
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
@@ -134,8 +139,6 @@ int main(int, char**)
 
     glfwDestroyWindow(window);
     glfwTerminate();
-
-    delete [] density;
 
     return 0;
 }

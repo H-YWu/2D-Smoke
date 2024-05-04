@@ -1,4 +1,4 @@
-#include "simulate2DSmoke.h"
+#include "smoke_solver_2d.h"
 #include "interpolation.h"
 #include "pcg_solver.h"
 
@@ -17,22 +17,19 @@ const double SmokeSolver2D::_g = -9.80665;   // m/s^2
 const double SmokeSolver2D::_rho0 = 1.293;   // smoke-free air density, kg/m^{-3}
 
 SmokeSolver2D::SmokeSolver2D(
-    int grid_width, int grid_height,
-    int dx, int render_cell_size,
+    int grid_width, int grid_height, double dx,
     double alpha, double beta,
-    // double ambient_T=273.0, double ambient_s=0.0,
-    // double wind_u=1.0, double wind_v=0.0,
-    // double rate_T=0.1, double rate_s=0.1, double T_target=300
     double ambient_T, double ambient_s,
     double wind_u, double wind_v,
-    double rate_T, double rate_s, double T_target
+    double rate_T, double rate_s, double T_target,
+    int render_cell_size
 )
-    : _nx(grid_width), _ny(grid_height)
-    , _dx(dx), _rc_sz(render_cell_size)
+    : _nx(grid_width), _ny(grid_height), _dx(dx)
     , _alpha(alpha), _beta(beta)
     , _amb_T(ambient_T), _amb_s(ambient_s)
     , _wind_u(wind_u), _wind_v(wind_v)
     , _r_T(rate_T), _r_s(rate_s), _T_tar(T_target)
+    , _sources(0)
     , _label(grid_width, std::vector<CellLabel>(grid_height))
     , _pressure(grid_width, std::vector<double>(grid_height))
     , _u(grid_width+1, std::vector<double>(grid_height))
@@ -41,6 +38,9 @@ SmokeSolver2D::SmokeSolver2D(
     , _v_nxt(grid_width, std::vector<double>(grid_height+1))
     , _T(grid_width, std::vector<double>(grid_height))
     , _s(grid_width, std::vector<double>(grid_height))
+    , _T_nxt(grid_width, std::vector<double>(grid_height))
+    , _s_nxt(grid_width, std::vector<double>(grid_height))
+    , _viewer(Viewer2D(grid_width, grid_height, render_cell_size))
 {
     init();
 }
@@ -49,11 +49,13 @@ void SmokeSolver2D::init() {
     // Smoke sources
     _sources.emplace_back(std::make_pair(0, static_cast<int>(0.25 * _ny)));
 
-    for (int x = 0; x <= _nx; x ++) {
-        for (int y = 0; y <= _ny; y ++) {
+    for (int x = 0; x < _nx; x ++) {
+        for (int y = 0; y < _ny; y ++) {
             _label[x][y] = FLUID;
-            _T[x][y] = 0.0;
-            _s[x][y] = 0.0;
+            _T[x][y] = _amb_T; 
+            _s[x][y] = _amb_s;
+            _T_nxt[x][y] = _amb_T; 
+            _s_nxt[x][y] = _amb_s;
             _pressure[x][y] = 0.0;
         }
     }
@@ -75,8 +77,8 @@ void SmokeSolver2D::step() {
     // TODO: CFL dt
     double dt = 0.01;
 
-    advect(U, dt, _u_nxt);
-    advect(V, dt, _v_nxt);
+    advect(U, dt);
+    advect(V, dt);
     _u.swap(_u_nxt);
     _v.swap(_v_nxt);
 
@@ -84,14 +86,17 @@ void SmokeSolver2D::step() {
     force(dt);
     project(dt);
 
-    advect(ST, dt, _T_nxt);
-    advect(SS, dt, _s_nxt);
+    advect(ST, dt);
+    advect(SS, dt);
     _T.swap(_T_nxt);
     _s.swap(_s_nxt);
 
     step_source(dt);
 }
 
+void SmokeSolver2D::render() {
+    _viewer.render(_s);
+}
 
 void SmokeSolver2D::step_source(double dt) {
     for (long unsigned int i = 0; i < _sources.size(); i ++) {
@@ -102,10 +107,10 @@ void SmokeSolver2D::step_source(double dt) {
     }
 }
 
-void SmokeSolver2D::advect(QuantityType qt, double dt, std::vector<std::vector<double>> &q_nxt) {
+void SmokeSolver2D::advect(QuantityType qt, double dt) {
     int nx = _nx, ny = _ny;
     if (qt == U) nx ++;
-    if (qt == V) ny ++;
+    else if (qt == V) ny ++;
 
     for (int x = 0; x < nx; x ++) {
         for (int y = 0; y < ny; y ++) {
@@ -117,32 +122,33 @@ void SmokeSolver2D::advect(QuantityType qt, double dt, std::vector<std::vector<d
             if (qt == U || qt == V) {
                 double u_P, v_P;
                 blerp_uv(x_P, y_P, u_P, v_P);
-                if (qt == U) q_nxt[x][y] = u_P;
-                if (qt == V) q_nxt[x][y] = v_P;
+                if (qt == U) _u_nxt[x][y] = u_P;
+                else if (qt == V) _v_nxt[x][y] = v_P;
             }
             else {
-                int x_low = static_cast<int>(std::floor(x_P));
-                int y_low = static_cast<int>(std::floor(y_P));
+                int x_high = static_cast<int>(std::ceil(x_P));
+                int y_high = static_cast<int>(std::ceil(y_P));
                 // Boundary condition
-                if (x_low < 0 || x_low >= _nx || y_low < 0 || y_low >= _ny) {
+                if (x_P < 0 || x_P > _nx-1 || y_P < 0 || y_P > _ny-1) {
                     if (qt == ST)
-                        q_nxt[x][y] = T_with_bnd(x_low, y_low);
-                    if (qt == SS)
-                        q_nxt[x][y] = s_with_bnd(x_low, y_low);
-                    continue;
+                        _T_nxt[x][y] = T_with_bnd(x_high, y_high);
+                    else if (qt == SS)
+                        _s_nxt[x][y] = s_with_bnd(x_high, y_high);
                 }
-                double tx = (x_P-static_cast<double>(x_low))/1.0;
-                double ty = (y_P-static_cast<double>(y_low))/1.0;
-                if (qt == ST)
-                    q_nxt[x][y] = blerp(
-                        _T[x_low][y_low], _T[x_low+1][y_low],
-                        _T[x_low+1][y_low], _T[x_low+1][y_low+1],
-                        tx, ty);
-                if (qt == SS)
-                    q_nxt[x][y] = blerp(
-                        _s[x_low][y_low], _s[x_low+1][y_low],
-                        _s[x_low+1][y_low], _s[x_low+1][y_low+1],
-                        tx, ty);
+                else {
+                    double tx = (x_P-static_cast<double>(x_high-1))/1.0;
+                    double ty = (y_P-static_cast<double>(y_high-1))/1.0;
+                    if (qt == ST)
+                        _T_nxt[x][y] = blerp(
+                            _T[x_high-1][y_high-1], _T[x_high][y_high-1],
+                            _T[x_high][y_high-1], _T[x_high][y_high],
+                            tx, ty);
+                    else if (qt == SS)
+                        _s_nxt[x][y] = blerp(
+                            _s[x_high-1][y_high-1], _s[x_high][y_high-1],
+                            _s[x_high][y_high-1], _s[x_high][y_high],
+                            tx, ty);
+                }
             }
         }
     }
@@ -200,7 +206,7 @@ void SmokeSolver2D::solve_pressure(double dt) {
     double scale_rhs = 1.0 / _dx;
     for (int x = 0; x < _nx; x ++) {
         for (int y = 0; y < _ny; y ++) {
-            int r = x*_nx+y;
+            int r = x*_ny+y;
             if (label(x,y)==FLUID) {
                 b[r] = -scale_rhs * (
                     _u[x+1][y] - _u[x][y] +
@@ -217,7 +223,7 @@ void SmokeSolver2D::solve_pressure(double dt) {
                     b[r] -= scale_rhs * (_u[x][y] - 0.0);
                 } 
                 else if (label(x-1,y)==FLUID) {
-                    A.add_to_element(r, r-_nx, -1.0 * scale_lhs);
+                    A.add_to_element(r, r-_ny, -1.0 * scale_lhs);
                 } // EMPTY just 0
                     // j = (x+1, y)
                 if (label(x+1,y)==SOLID) {
@@ -227,7 +233,7 @@ void SmokeSolver2D::solve_pressure(double dt) {
                     b[r] += scale_rhs * (_u[x+1][y] - 0.0);
                 } 
                 else if (label(x+1,y)==FLUID) {
-                    A.add_to_element(r, r+_nx, -1.0 * scale_lhs);
+                    A.add_to_element(r, r+_ny, -1.0 * scale_lhs);
                 } // EMPTY just 0
                     // j = (x, y-1)
                 if (label(x,y-1)==SOLID) {
@@ -261,7 +267,7 @@ void SmokeSolver2D::solve_pressure(double dt) {
     solver.solve(A, b, result, res, iters); 
     for (int x = 0; x < _nx; x ++) {
         for (int y = 0; y < _ny; y ++) {
-            _pressure[x][y] = result[x*_nx+y];
+            _pressure[x][y] = result[x*_ny+y];
         }
     }
     // TODO: check solver
@@ -330,7 +336,7 @@ void SmokeSolver2D::cell_uv(QuantityType qt, int x_G, int y_G, double &u_G, doub
             v_with_bnd(x_G, y_G) + v_with_bnd(x_G, y_G+1)
         );
     }
-    if (qt == V) {
+    else if (qt == V) {
         u_G = 0.25 * (
             u_with_bnd(x_G-1, y_G) + u_with_bnd(x_G-1, y_G+1) +
             u_with_bnd(x_G, y_G) + u_with_bnd(x_G, y_G+1)
@@ -391,7 +397,6 @@ CellLabel SmokeSolver2D::label(int x, int y) {
     if (x >= 0 && x < _nx && y >= 0 && y < _ny) {
         return _label[x][y];
     } else { // Boundary condition
-        // Assuming surrounded by air
-        return FLUID;
+        return EMPTY;
     }
 }
