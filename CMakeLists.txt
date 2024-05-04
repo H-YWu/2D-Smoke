@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 11)
 
 # Submodules
 set(GLFW_DIR external/glfw)
+set(STB_DIR external/stb)
 add_subdirectory(${GLFW_DIR})
 
 # ImGui {*.cpp,*.h} directories
@@ -72,6 +73,7 @@ add_executable(${EXECUTABLE_NAME} ${SOURCES})
 target_include_directories(${EXECUTABLE_NAME} PRIVATE ${IMGUI_DIR})
 target_include_directories(${EXECUTABLE_NAME} PRIVATE ${IMGUI_BACKENDS_DIR})
 target_include_directories(${EXECUTABLE_NAME} PRIVATE ${GLFW_DIR}/include)
+target_include_directories(${EXECUTABLE_NAME} PRIVATE ${STB_DIR})
 target_include_directories(${EXECUTABLE_NAME} PRIVATE include)
 target_include_directories(${EXECUTABLE_NAME} PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
 

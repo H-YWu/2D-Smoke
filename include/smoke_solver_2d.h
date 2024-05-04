@@ -76,7 +76,9 @@ private:
     std::vector<std::vector<double>> _u_nxt;    // next step velocity x
     std::vector<std::vector<double>> _v_nxt;    // next step velocity y
     std::vector<std::vector<double>> _T;    // temperature
+public:
     std::vector<std::vector<double>> _s;    // concentration
+private:
     std::vector<std::vector<double>> _T_nxt;    // next step temperature
     std::vector<std::vector<double>> _s_nxt;    // next step concentration
     

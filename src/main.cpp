@@ -1,6 +1,9 @@
 #include "config.h"
 #include "smoke_solver_2d.h"
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
+
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
@@ -16,6 +19,9 @@
 #endif
 
 #include <iostream>
+
+#include <time.h>
+#include <stdlib.h>
 
 static void glfw_error_callback(int error, const char* description)
 {
@@ -79,11 +85,24 @@ int main(int, char**)
 #endif
     ImGui_ImplOpenGL3_Init(glsl_version);
 
-    // GUI state
-    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+    // Generating directory name with current time
+    time_t rawtime;
+    struct tm * timeinfo;
+    char dirname[256];
+    time(&rawtime);
+    timeinfo = localtime(&rawtime);
+    sprintf(dirname, "./output/%d-%02d-%02d_%02d-%02d-%02d",
+            timeinfo->tm_year + 1900, timeinfo->tm_mon + 1, timeinfo->tm_mday,
+            timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
+    // Creating the directory
+    char mkdir_cmd[512];
+    sprintf(mkdir_cmd, "mkdir -p %s", dirname);
+    system(mkdir_cmd);
 
     // Smoke solver
     SmokeSolver2D smoke_solver(grid_w, grid_h, dx);
+
+    int frame = 0;
 
     // Main loop
 #ifdef __EMSCRIPTEN__
@@ -122,9 +141,36 @@ int main(int, char**)
         glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        smoke_solver.render();
+        // smoke_solver.render();
 
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+        // Write this frame to png
+        unsigned char* image_data = (unsigned char*)malloc(grid_w * grid_h * 3);
+        for (int y = 0; y < grid_h; y ++) {
+            for (int x = 0; x < grid_w; x ++) {
+                int index = (y * grid_w + x) * 3;
+                double d = smoke_solver._s[x][y];
+                if (d > 0.0) {
+                    image_data[index] = 115 * d;     // Red
+                    image_data[index + 1] = 140 * d;   // Green
+                    image_data[index + 2] = 153 * d;   // Blue
+                } else {
+                    image_data[index] = 255;     // Red
+                    image_data[index + 1] = 255;   // Green
+                    image_data[index + 2] = 255;   // Blue
+                }
+            }
+        }
+        // Write image to file
+        char filename[256];
+        sprintf(filename, "%d.png", frame);
+        char filepath[512];
+        sprintf(filepath, "%s/%s", dirname, filename);
+        stbi_write_png(filepath, grid_w, grid_h, 3, image_data, grid_w * 3);
+        // Free memory
+        free(image_data);
+        frame ++;
 
         glfwSwapBuffers(window);
     }
