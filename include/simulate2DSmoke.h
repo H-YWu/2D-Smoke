@@ -47,6 +47,7 @@ private:
     double v_with_bnd(int x, int y);
     double T_with_bnd(int x, int y);
     double s_with_bnd(int x, int y);
+    double p_with_bnd(int x, int y);
 
     CellLabel label(int x, int y);
 

@@ -279,9 +279,8 @@ void SmokeSolver2D::update_uv_incompressible(double dt) {
                         // Assume solids are all still
                         _u[x][y] = 0.0;
                     } else {
-                        // TODO: pressure bnd
                         _u[x][y] -= scale * 
-                            (_pressure[x][y] - _pressure[x-1][y]);
+                            (p_with_bnd(x,y) - p_with_bnd(x-1,y));
                     }
                 } else {
                     // u(x,y) is unknown
@@ -295,9 +294,8 @@ void SmokeSolver2D::update_uv_incompressible(double dt) {
                         // Assume solids are all still
                         _v[x][y] = 0.0;
                     } else {
-                        // TODO: pressure bnd
                         _v[x][y] -= scale * 
-                            (_pressure[x][y] - _pressure[x][y-1]);
+                            (p_with_bnd(x,y) - p_with_bnd(x,y-1));
                     }
                 } else {
                     // v(x,y) is unknown
@@ -345,7 +343,8 @@ void SmokeSolver2D::cell_uv(QuantityType qt, int x_G, int y_G, double &u_G, doub
     }
 }
 
-// TODO: cell label
+// TODO: cell label SOLID EMPTY extrapolate
+
 double SmokeSolver2D::u_with_bnd(int x, int y) {
     if (x >= 0 && x <= _nx && y >= 0 && y < _ny) {
         return _u[x][y];
@@ -375,6 +374,16 @@ double SmokeSolver2D::s_with_bnd(int x, int y) {
         return _s[x][y];
     } else { // Boundary condition:
         return _amb_s;
+    }
+}
+
+double SmokeSolver2D::p_with_bnd(int x, int y) {
+    if (x >= 0 && x < _nx && y >= 0 && y < _ny) {
+        return _pressure[x][y];
+    } else { // Boundary condition:
+        // Free air pressure
+        return 101.325; // Pa
+        // return 0.0;
     }
 }
 
