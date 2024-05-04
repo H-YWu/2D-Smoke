@@ -83,7 +83,7 @@ int main(int, char**)
 
     // Smoke
     double *density = new double[grid_w*grid_h];
-    Fluid::simulate_2D_Smoke(density, grid_w, grid_h);
+    simulate_2D_Smoke(density, grid_w, grid_h);
 
     // Main loop
 #ifdef __EMSCRIPTEN__
@@ -117,7 +117,7 @@ int main(int, char**)
         glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        //Fluid::render_2D_Smoke(window, density, grid_w, grid_h, render_cell_sz);
+        //render_2D_Smoke(window, density, grid_w, grid_h, render_cell_sz);
 
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
