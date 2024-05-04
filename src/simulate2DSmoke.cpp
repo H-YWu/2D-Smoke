@@ -1,5 +1,6 @@
 #include "simulate2DSmoke.h"
 #include "utils.h"
+#include "pcg_solver.h"
 
 #include <cmath>
 
@@ -162,9 +163,8 @@ void SmokeSolver2D::force(double dt) {
 }
 
 void SmokeSolver2D::project(double dt) {
-    // Solve pressures
-
-    // Update velocities of fluid
+    solve_pressure(dt); 
+    // Update velocity of fluid from solved pressure
     update_uv_incompressible(dt);
 }
 
@@ -188,6 +188,82 @@ void SmokeSolver2D::RK2(QuantityType qt, int x_G, int y_G, double dt, double &x_
 
     x_P = x_G - dt * u_mid;
     y_P = y_G - dt * v_mid;
+}
+
+void SmokeSolver2D::solve_pressure(double dt) {
+    // Construct the linear system
+    int sz = _nx*_ny;
+    SparseMatrix<double> A(sz);
+    std::vector<double> x(sz);
+    std::vector<double> b(sz);
+    double scale_lhs = dt / (_rho0 * _dx * _dx);
+    double scale_rhs = 1.0 / _dx;
+    for (int x = 0; x < _nx; x ++) {
+        for (int y = 0; y < _ny; y ++) {
+            int r = x*_nx+y;
+            if (label(x,y)==FLUID) {
+                b[r] = -scale_rhs * (
+                    _u[x+1][y] - _u[x][y] +
+                    _v[x][y+1] - _v[x][y]
+                );
+                // i = (x, y)
+                    // j = (x, y)
+                A.add_to_element(r, r, 4.0 * scale_lhs);
+                    // j = (x-1, y)
+                if (label(x-1,y)==SOLID) {
+                    A.add_to_element(r, r, -1.0 * scale_lhs);
+                    // u(x,y) - usolid(x, y)
+                    // Assume solids are all still
+                    b[r] -= scale_rhs * (_u[x][y] - 0.0);
+                } 
+                else if (label(x-1,y)==FLUID) {
+                    A.add_to_element(r, r-_nx, -1.0 * scale_lhs);
+                } // EMPTY just 0
+                    // j = (x+1, y)
+                if (label(x+1,y)==SOLID) {
+                    A.add_to_element(r, r, -1.0 * scale_lhs);
+                    // u(x+1,y) - usolid(x+1, y)
+                    // Assume solids are all still
+                    b[r] += scale_rhs * (_u[x+1][y] - 0.0);
+                } 
+                else if (label(x+1,y)==FLUID) {
+                    A.add_to_element(r, r+_nx, -1.0 * scale_lhs);
+                } // EMPTY just 0
+                    // j = (x, y-1)
+                if (label(x,y-1)==SOLID) {
+                    A.add_to_element(r, r, -1.0 * scale_lhs);
+                    // v(x,y) - vsolid(x, y)
+                    // Assume solids are all still
+                    b[r] -= scale_rhs * (_v[x][y] - 0.0);
+                }
+                else if (label(x,y-1)==FLUID) {
+                    A.add_to_element(r, r-1, -1.0 * scale_lhs);
+                } // EMPTY just 0
+                    // j = (x, y+1)
+                if (label(x,y+1)==SOLID) {
+                    A.add_to_element(r, r, -1.0 * scale_lhs);
+                    // v(x,y+1) - vsolid(x, y+1)
+                    // Assume solids are all still
+                    b[r] += scale_rhs * (_v[x][y+1] - 0.0);
+                } 
+                else if (label(x,y+1)==FLUID) {
+                    A.add_to_element(r, r+1, -1.0 * scale_lhs);
+                } // EMPTY just 0
+            } else {
+                b[r] = 0.0;
+            }
+        }
+    }
+    // Solve the linear system
+    PCGSolver solver;
+    double res;
+    int iters;
+    solver.solve(A, b, x, T res, iters); 
+    for (int x = 0; x < _nx; x ++) {
+        for (int y = 0; y < _ny; y ++) {
+            _pressure[x][y] = x[x*_nx+y];
+        }
+    }
 }
 
 void SmokeSolver2D::update_uv_incompressible(double dt) {
@@ -269,6 +345,7 @@ void SmokeSolver2D::cell_uv(QuantityType qt, int x_G, int y_G, double &u_G, doub
     }
 }
 
+// TODO: cell label
 double SmokeSolver2D::u_with_bnd(int x, int y) {
     if (x >= 0 && x <= _nx && y >= 0 && y < _ny) {
         return _u[x][y];

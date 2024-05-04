@@ -38,6 +38,7 @@ private:
     void backward_Euler(QuantityType qt, int x_G, int y_G, double dt, double &x_P, double &y_P);
     void RK2(QuantityType qt, int x_G, int y_G, double dt, double &x_P, double &y_P);
 
+    void solve_pressure(double dt);
     void update_uv_incompressible(double dt);
 
     void blerp_uv(double x, double y, double &u, double &v);
