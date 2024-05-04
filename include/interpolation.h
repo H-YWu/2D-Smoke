@@ -1,5 +1,5 @@
-#ifndef UTILS_H
-#define UTILS_H
+#ifndef INTERPOLATION_H 
+#define INTERPOLATION_H 
 
 // Linear interpolation
 double lerp(double a, double b, double t) {

@@ -1,5 +1,5 @@
 #include "simulate2DSmoke.h"
-#include "utils.h"
+#include "interpolation.h"
 #include "pcg_solver.h"
 
 #include <cmath>
