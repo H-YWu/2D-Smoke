@@ -7,6 +7,3 @@
 [submodule "external/stb"]
 	path = external/stb
 	url = https://github.com/nothings/stb.git
-[submodule "external/inih"]
-	path = external/inih
-	url = https://github.com/benhoyt/inih.git
