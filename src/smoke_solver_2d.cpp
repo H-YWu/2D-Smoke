@@ -25,7 +25,7 @@ SmokeSolver2D::SmokeSolver2D(
     int render_cell_size
 )
     : _nx(grid_width), _ny(grid_height), _dx(dx)
-    , _alpha(alpha), _beta(beta)
+    , _alpha(alpha), _beta(1.0/ambient_T)
     , _amb_T(ambient_T), _amb_s(ambient_s)
     , _wind_u(wind_u), _wind_v(wind_v)
     , _r_T(rate_T), _r_s(rate_s), _T_tar(T_target)
@@ -40,6 +40,7 @@ SmokeSolver2D::SmokeSolver2D(
     , _s(grid_width, std::vector<double>(grid_height))
     , _T_nxt(grid_width, std::vector<double>(grid_height))
     , _s_nxt(grid_width, std::vector<double>(grid_height))
+    , _s_max(_amb_s), _dT_max(0.0), _u_max(wind_u), _v_max(wind_v)
     , _viewer(Viewer2D(grid_width, grid_height, render_cell_size))
 {
     init();
@@ -47,7 +48,13 @@ SmokeSolver2D::SmokeSolver2D(
 
 void SmokeSolver2D::init() {
     // Smoke sources
-    _sources.emplace_back(std::make_pair(0, static_cast<int>(0.25 * _ny)));
+    int yc = static_cast<int>(0.25 * _ny);
+    _sources.emplace_back(std::make_pair(0, yc));
+    for (int i = 1; i <= 5; i ++) {
+        // TODO: check valid index
+        _sources.emplace_back(std::make_pair(0, yc+i));
+        _sources.emplace_back(std::make_pair(0, yc-i));
+    }
 
     for (int x = 0; x < _nx; x ++) {
         for (int y = 0; y < _ny; y ++) {
@@ -74,8 +81,8 @@ void SmokeSolver2D::init() {
 }
 
 void SmokeSolver2D::step() {
-    // TODO: CFL dt
     double dt = 0.01;
+    CFL_dt(dt);
 
     advect(U, dt);
     advect(V, dt);
@@ -98,12 +105,23 @@ void SmokeSolver2D::render() {
     _viewer.render(_s);
 }
 
+
+void SmokeSolver2D::CFL_dt(double &dt) {
+    int C = 5;
+    double dt_max_x = dt, dt_max_y = dt;
+    double acc1 = std::abs((_alpha * _s_max) * _g), acc2 = std::abs((_beta * _dT_max) * _g);
+    if (_u_max > 0) dt_max_x = std::max(dt_max_x, (C*_dx)/_u_max);
+    _v_max = std::max(_v_max+sqrt(C*_dx*acc1), _v_max+sqrt(C*_dx*acc2));
+    if (_v_max > 0) dt_max_y = std::max(dt_max_y, (C*_dx)/_v_max);
+    dt = std::min(dt_max_x, dt_max_y);
+}
+
 void SmokeSolver2D::step_source(double dt) {
     for (long unsigned int i = 0; i < _sources.size(); i ++) {
         int x = _sources[i].first;
         int y = _sources[i].second;
         _T[x][y] = _T[x][y] + (1.0 - std::exp(-_r_T * dt)) * (_T_tar - _T[x][y]);
-        _s[x][y] = _s[x][y] + _r_s * dt;
+        _s[x][y] = std::min(_s[x][y] + _r_s * dt, 1.0);
     }
 }
 
@@ -155,6 +173,7 @@ void SmokeSolver2D::advect(QuantityType qt, double dt) {
 }
 
 void SmokeSolver2D::force(double dt) {
+    _s_max = 0.0, _dT_max = 0.0;
     // Gravity/Buoyancy only applies to v
     for (int x = 0; x < _nx; x ++) {
         for (int y = 0; y <= _ny; y ++) {
@@ -163,6 +182,9 @@ void SmokeSolver2D::force(double dt) {
             double b = 
                 (_alpha * s - _beta * (T - _amb_T)) * _g;
             _v_nxt[x][y] = _v[x][y] + dt * b;
+
+            _s_max = std::max(_s_max, s);
+            _dT_max = std::max(_dT_max, (T-_amb_T));
         }
     }
     _v.swap(_v_nxt);
@@ -274,6 +296,8 @@ void SmokeSolver2D::solve_pressure(double dt) {
 }
 
 void SmokeSolver2D::update_uv_incompressible(double dt) {
+    _u_max = 0.0, _v_max = 0.0;
+
     double scale = dt / (_rho0 * _dx);
     for (int x = 0; x <= _nx; x ++) {
         for (int y = 0; y <= _ny; y ++) {
@@ -291,6 +315,8 @@ void SmokeSolver2D::update_uv_incompressible(double dt) {
                 } else {
                     // u(x,y) is unknown
                 }
+
+                _u_max = std::max(_u_max, _u[x][y]);
             }
 
             if (x != _nx) { // update v
@@ -306,6 +332,8 @@ void SmokeSolver2D::update_uv_incompressible(double dt) {
                 } else {
                     // v(x,y) is unknown
                 }
+
+                _v_max = std::max(_v_max, _v[x][y]);
             }
 
         }

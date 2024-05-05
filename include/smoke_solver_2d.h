@@ -19,10 +19,10 @@ class SmokeSolver2D {
 public:
     SmokeSolver2D(
         int grid_width, int grid_height, double dx,
-        double alpha=0.5, double beta=0.5,
+        double alpha=0.5, double beta=0.1,
         double ambient_T=273.0, double ambient_s=0.0,
         double wind_u=1.0, double wind_v=0.0,
-        double rate_T=0.1, double rate_s=0.1, double T_target=300,
+        double rate_T=8.0, double rate_s=10.0, double T_target=300.0,
         int render_cell_size=1
     );
 
@@ -31,6 +31,7 @@ public:
     void render();
 
 private:
+    void CFL_dt(double &dt);
     void step_source(double dt);
 
     void advect(QuantityType qt, double dt);
@@ -81,7 +82,8 @@ public:
 private:
     std::vector<std::vector<double>> _T_nxt;    // next step temperature
     std::vector<std::vector<double>> _s_nxt;    // next step concentration
-    
+    // For CFL 
+    double _s_max, _dT_max, _u_max, _v_max; 
     Viewer2D _viewer;
 };
 

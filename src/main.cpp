@@ -99,6 +99,14 @@ int main(int, char**)
     sprintf(mkdir_cmd, "mkdir -p %s", dirname);
     system(mkdir_cmd);
 
+    auto mix_to_white = [](int component, double ratio) {
+        int x = 100-std::min(static_cast<int>(ratio*100+0.5), 100);
+        int rounded = std::min((((100-x)*component+x*255)/100), 255);
+        int clipped = std::max(0, std::min(rounded, 255));
+        return static_cast<unsigned char>(clipped);
+    };
+
+
     // Smoke solver
     SmokeSolver2D smoke_solver(grid_w, grid_h, dx);
 
@@ -149,17 +157,11 @@ int main(int, char**)
         unsigned char* image_data = (unsigned char*)malloc(grid_w * grid_h * 3);
         for (int y = 0; y < grid_h; y ++) {
             for (int x = 0; x < grid_w; x ++) {
-                int index = (y * grid_w + x) * 3;
+                int index = ((grid_h-1-y) * grid_w + x) * 3;
                 double d = smoke_solver._s[x][y];
-                if (d > 0.0) {
-                    image_data[index] = 115 * d;     // Red
-                    image_data[index + 1] = 140 * d;   // Green
-                    image_data[index + 2] = 153 * d;   // Blue
-                } else {
-                    image_data[index] = 255;     // Red
-                    image_data[index + 1] = 255;   // Green
-                    image_data[index + 2] = 255;   // Blue
-                }
+                image_data[index] = mix_to_white(0, d);     // Red
+                image_data[index + 1] = mix_to_white(102, d);   // Green
+                image_data[index + 2] = mix_to_white(204, d);   // Blue
             }
         }
         // Write image to file
