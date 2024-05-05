@@ -2,6 +2,7 @@
 #define CONFIG_READER_H
 
 #include "yaml-cpp/yaml.h"
+#include "smoke_solver_2d.h"
 
 struct SolverConfig {
     int width, height;
@@ -9,6 +10,7 @@ struct SolverConfig {
     double alpha, beta;
     double amb_T, amb_s, wind_u, wind_v;
     double rate_T, rate_s, T_target;
+    IntegrationScheme int_sch;
 };
 
 
@@ -32,6 +34,12 @@ SolverConfig read_YAML(const std::string& filename) {
     config.rate_T = config_file["smoke"]["tempreature_rate"].as<double>();
     config.rate_s = config_file["smoke"]["concentration_rate"].as<double>();
     config.T_target = config_file["smoke"]["target_tempreature"].as<double>();
+
+    std::string int_sch_string = config_file["scheme"]["integration"].as<std::string>();
+    if (int_sch_string == "BACKWARD_EULER")
+        config.int_sch = BACKWARD_EULER;
+    else
+        config.int_sch = RK2;
 
     return config;
 }

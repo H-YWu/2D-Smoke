@@ -122,7 +122,8 @@ int main(int argc, char* argv[])
         solver_config.alpha, solver_config.beta,
         solver_config.amb_T, solver_config.amb_s,
         solver_config.wind_u, solver_config.wind_v,
-        solver_config.rate_T, solver_config.rate_s, solver_config.T_target
+        solver_config.rate_T, solver_config.rate_s, solver_config.T_target,
+        solver_config.int_sch
     );
 
     int frame = 0;

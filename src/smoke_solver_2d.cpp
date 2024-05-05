@@ -21,7 +21,8 @@ SmokeSolver2D::SmokeSolver2D(
     double alpha, double beta,
     double ambient_T, double ambient_s,
     double wind_u, double wind_v,
-    double rate_T, double rate_s, double T_target
+    double rate_T, double rate_s, double T_target,
+    IntegrationScheme integration_scheme
 )
     : _nx(grid_width), _ny(grid_height), _dx(dx)
     , _alpha(alpha), _beta(1.0/ambient_T)
@@ -40,19 +41,20 @@ SmokeSolver2D::SmokeSolver2D(
     , _T_nxt(grid_width, std::vector<double>(grid_height))
     , _s_nxt(grid_width, std::vector<double>(grid_height))
     , _s_max(_amb_s), _dT_max(0.0), _u_max(wind_u), _v_max(wind_v)
+    , _intsch(integration_scheme)
 {
     init();
 }
 
 void SmokeSolver2D::init() {
     // Smoke sources
-    int yc = static_cast<int>(0.25 * _ny);
-    for (int i = 0; i <= 2; i ++) {
-        for (int j = 0; j <= 15; j ++) {
+    int xc = static_cast<int>(0.5 * _nx);
+    for (int i = 0; i <= 20; i ++) {
+        for (int j = 0; j <= 3; j ++) {
             // TODO: check valid index
-            _sources.emplace_back(std::make_pair(i, yc+j));
-            if (j != 0)
-            _sources.emplace_back(std::make_pair(i, yc-j));
+            _sources.emplace_back(std::make_pair(xc+i, j));
+            if (i != 0)
+            _sources.emplace_back(std::make_pair(xc-i, j));
         }
     }
 
@@ -129,8 +131,10 @@ void SmokeSolver2D::advect(FieldType ft, double dt) {
         for (int y = 0; y < ny; y ++) {
             double x_P, y_P;
             // Default: Backward Euler
-            // TODO: integration method select
-            backward_Euler(ft, x, y, dt, x_P, y_P);
+            if (_intsch == BACKWARD_EULER)
+                backward_Euler(ft, x, y, dt, x_P, y_P);
+            else
+                RK2(ft, x, y, dt, x_P, y_P);
             // TODO: interpolation method select
             if (ft == U || ft == V) {
                 double u_P, v_P;

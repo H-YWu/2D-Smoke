@@ -8,6 +8,8 @@ enum CellLabel {SOLID, FLUID, EMPTY};
 
 enum FieldType {U, V, ST, SS};
 
+enum IntegrationScheme {BACKWARD_EULER, RK2};
+
 void simulate_2D_Smoke(double *density, int width, int height);
 
 // Simulate smoke in the smoke-free open air
@@ -25,7 +27,8 @@ public:
         double alpha=0.5, double beta=0.1,
         double ambient_T=273.0, double ambient_s=0.0,
         double wind_u=1.0, double wind_v=0.0,
-        double rate_T=8.0, double rate_s=10.0, double T_target=300.0
+        double rate_T=8.0, double rate_s=10.0, double T_target=300.0,
+        IntegrationScheme integration_scheme=BACKWARD_EULER
     );
 
     // Simulate smoke by one step
@@ -96,6 +99,8 @@ private:
     std::vector<std::vector<double>> _s_nxt;    // next step concentration
     // For CFL 
     double _s_max, _dT_max, _u_max, _v_max; 
+    // Integration scheme
+    IntegrationScheme _intsch;
 };
 
 #endif // SIMULATE_2D_SMOKE_H

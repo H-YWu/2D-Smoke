@@ -3,14 +3,16 @@ grid:
   height: 720 
   dx: 1.0 
 buoyancy:
-  alpha: 0.5
+  alpha: 0.01
   beta: 0.1
 air:
   tempreature: 273.0
   concentration: 0.0
-  u: 10.0
+  u: 15.0
   v: 0.0
 smoke:
-  tempreature_rate: 10.0
-  concentration_rate: 10.0
+  tempreature_rate: 8.0
+  concentration_rate: 8.0
   target_tempreature: 300.0
+scheme:
+  integration: RK2
