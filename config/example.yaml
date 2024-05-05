@@ -1,0 +1,16 @@
+grid:
+  width: 1280 
+  height: 720 
+  dx: 1.0 
+buoyancy:
+  alpha: 0.5
+  beta: 0.1
+air:
+  tempreature: 273.0
+  concentration: 0.0
+  u: 10.0
+  v: 0.0
+smoke:
+  tempreature_rate: 10.0
+  concentration_rate: 10.0
+  target_tempreature: 300.0

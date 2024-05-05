@@ -6,7 +6,9 @@ set(CMAKE_CXX_STANDARD 11)
 # Submodules
 set(GLFW_DIR external/glfw)
 set(STB_DIR external/stb)
+set(YAML_CPP_DIR external/yaml-cpp)
 add_subdirectory(${GLFW_DIR})
+add_subdirectory(${YAML_CPP_DIR})
 
 # ImGui {*.cpp,*.h} directories
 set(IMGUI_DIR external/imgui)
@@ -74,6 +76,7 @@ target_include_directories(${EXECUTABLE_NAME} PRIVATE ${IMGUI_DIR})
 target_include_directories(${EXECUTABLE_NAME} PRIVATE ${IMGUI_BACKENDS_DIR})
 target_include_directories(${EXECUTABLE_NAME} PRIVATE ${GLFW_DIR}/include)
 target_include_directories(${EXECUTABLE_NAME} PRIVATE ${STB_DIR})
+target_include_directories(${EXECUTABLE_NAME} PRIVATE ${YAML_CPP_DIR}/include)
 target_include_directories(${EXECUTABLE_NAME} PRIVATE include)
 target_include_directories(${EXECUTABLE_NAME} PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTERFACE_INCLUDE_DIRECTORIES>)
 
@@ -81,3 +84,4 @@ target_compile_options(${EXECUTABLE_NAME} PUBLIC $<TARGET_PROPERTY:MKL::MKL,INTE
 # Link libraries
 target_link_libraries(${EXECUTABLE_NAME} PRIVATE ${LIBS})
 target_link_libraries(${EXECUTABLE_NAME} PUBLIC $<LINK_ONLY:MKL::MKL>)
+target_link_libraries(${EXECUTABLE_NAME} PRIVATE yaml-cpp)

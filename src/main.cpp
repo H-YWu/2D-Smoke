@@ -1,8 +1,8 @@
-#include "config.h"
 #include "smoke_solver_2d.h"
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
+#include "config_reader.h"
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -28,8 +28,18 @@ static void glfw_error_callback(int error, const char* description)
     fprintf(stderr, "GLFW Error %d: %s\n", error, description);
 }
 
-int main(int, char**)
+int main(int argc, char* argv[])
 {
+    // default config file
+    std::string config_filename = "../config/example.yaml";
+    if (argc > 1) { // user-sepcified config file 
+        config_filename = argv[1];
+    }
+    SolverConfig solver_config = read_YAML(config_filename);
+
+    int width = solver_config.width;
+    int height = solver_config.height;
+
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit())
         return 1;
@@ -57,11 +67,9 @@ int main(int, char**)
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // 3.0+ only
 #endif
 
-    int window_w = grid_w;
-    int window_h = grid_h;
 
     // Create window with graphics context
-    GLFWwindow* window = glfwCreateWindow(window_w, window_h, "Dear ImGui GLFW+OpenGL3 example", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(width, height, "Dear ImGui GLFW+OpenGL3 example", nullptr, nullptr);
     if (window == nullptr)
         return 1;
     glfwMakeContextCurrent(window);
@@ -109,7 +117,13 @@ int main(int, char**)
     };
 
     // Smoke solver
-    SmokeSolver2D smoke_solver(grid_w, grid_h, dx);
+    SmokeSolver2D smoke_solver(
+        solver_config.width, solver_config.height, solver_config.dx,
+        solver_config.alpha, solver_config.beta,
+        solver_config.amb_T, solver_config.amb_s,
+        solver_config.wind_u, solver_config.wind_v,
+        solver_config.rate_T, solver_config.rate_s, solver_config.T_target
+    );
 
     int frame = 0;
 
@@ -151,10 +165,10 @@ int main(int, char**)
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         // Write this frame to .png
-        unsigned char* image_data = (unsigned char*)malloc(grid_w * grid_h * 3);
-        for (int y = 0; y < grid_h; y ++) {
-            for (int x = 0; x < grid_w; x ++) {
-                int index = ((grid_h-1-y) * grid_w + x) * 3;
+        unsigned char* image_data = (unsigned char*)malloc(width * height * 3);
+        for (int y = 0; y < height; y ++) {
+            for (int x = 0; x < width; x ++) {
+                int index = ((height-1-y) * width + x) * 3;
                 double d = smoke_solver._s[x][y];
                 image_data[index] = mix_to_white(0, d);     // Red
                 image_data[index + 1] = mix_to_white(102, d);   // Green
@@ -165,7 +179,7 @@ int main(int, char**)
         sprintf(filename, "%d.png", frame);
         char filepath[512];
         sprintf(filepath, "%s/%s", dirname, filename);
-        stbi_write_png(filepath, grid_w, grid_h, 3, image_data, grid_w * 3);
+        stbi_write_png(filepath, width, height, 3, image_data, width * 3);
         // Free memory
         free(image_data);
         // Next frame

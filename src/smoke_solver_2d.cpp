@@ -47,11 +47,13 @@ SmokeSolver2D::SmokeSolver2D(
 void SmokeSolver2D::init() {
     // Smoke sources
     int yc = static_cast<int>(0.25 * _ny);
-    _sources.emplace_back(std::make_pair(0, yc));
-    for (int i = 1; i <= 5; i ++) {
-        // TODO: check valid index
-        _sources.emplace_back(std::make_pair(0, yc+i));
-        _sources.emplace_back(std::make_pair(0, yc-i));
+    for (int i = 0; i <= 2; i ++) {
+        for (int j = 0; j <= 15; j ++) {
+            // TODO: check valid index
+            _sources.emplace_back(std::make_pair(i, yc+j));
+            if (j != 0)
+            _sources.emplace_back(std::make_pair(i, yc-j));
+        }
     }
 
     for (int x = 0; x < _nx; x ++) {

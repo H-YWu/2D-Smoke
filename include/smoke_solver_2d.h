@@ -16,7 +16,7 @@ class SmokeSolver2D {
 public:
     // Simulation grid: width x height
     // Cell size: dx x dx
-    // Smoke bouyance parameters: alpha, beta
+    // Smoke buoyancy parameters: alpha, beta
     // Air parameters: ambient tempreature and ambient smoke concentration
     // Open air velocity: (wind_u, wind_v)
     // Smoke emitter parameters: rate of increase of tempreature and smoke concentration, target tempreature
@@ -42,7 +42,7 @@ private:
 
     // Advect the field 
     void advect(FieldType ft, double dt);
-    // Add external forces, esp. gravity and bouyancy
+    // Add external forces, esp. gravity and buoyancy
     void force(double dt);
     // Ensuring incompressible condition
     void project(double dt);
