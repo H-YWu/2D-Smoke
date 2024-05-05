@@ -1,51 +1,63 @@
 #ifndef SMOKE_SOLVER_2D_H
 #define SMOKE_SOLVER_2D_H
 
-#include "viewer_2d.h"
-
 #include <vector>
 #include <utility>
 
 enum CellLabel {SOLID, FLUID, EMPTY};
 
-enum QuantityType {U, V, ST, SS};
+enum FieldType {U, V, ST, SS};
 
 void simulate_2D_Smoke(double *density, int width, int height);
 
-// simulating smoke in the open air we could assume
-// a constant wind velocity U (perhaps zero) outside of the simulation domain.
-
+// Simulate smoke in the smoke-free open air
+//  with constant air velocity
 class SmokeSolver2D {
 public:
+    // Simulation grid: width x height
+    // Cell size: dx x dx
+    // Smoke bouyance parameters: alpha, beta
+    // Air parameters: ambient tempreature and ambient smoke concentration
+    // Open air velocity: (wind_u, wind_v)
+    // Smoke emitter parameters: rate of increase of tempreature and smoke concentration, target tempreature
     SmokeSolver2D(
         int grid_width, int grid_height, double dx,
         double alpha=0.5, double beta=0.1,
         double ambient_T=273.0, double ambient_s=0.0,
         double wind_u=1.0, double wind_v=0.0,
-        double rate_T=8.0, double rate_s=10.0, double T_target=300.0,
-        int render_cell_size=1
+        double rate_T=8.0, double rate_s=10.0, double T_target=300.0
     );
 
-    void init();
+    // Simulate smoke by one step
     void step();
-    void render();
 
 private:
+    // Simulation setup
+    void init();
+
+    // Calculate max dt from CFL condition
     void CFL_dt(double &dt);
+    // Add smoke sources by one step
     void step_source(double dt);
 
-    void advect(QuantityType qt, double dt);
+    // Advect the field 
+    void advect(FieldType ft, double dt);
+    // Add external forces, esp. gravity and bouyancy
     void force(double dt);
+    // Ensuring incompressible condition
     void project(double dt);
 
-    void backward_Euler(QuantityType qt, int x_G, int y_G, double dt, double &x_P, double &y_P);
-    void RK2(QuantityType qt, int x_G, int y_G, double dt, double &x_P, double &y_P);
+    void backward_Euler(FieldType ft, int x_G, int y_G, double dt, double &x_P, double &y_P);
+    void RK2(FieldType ft, int x_G, int y_G, double dt, double &x_P, double &y_P);
 
     void solve_pressure(double dt);
     void update_uv_incompressible(double dt);
 
+    // Interpolate velocity (u, v) at an arbitrary grid point (x, y)
     void blerp_uv(double x, double y, double &u, double &v);
-    void cell_uv(QuantityType qt, int x_G, int y_G, double &u_G, double &v_G);
+    // Interpolate velocity (u, v) at a regular grid point (x, y)
+    void cell_uv(FieldType ft, int x, int y, double &u, double &v);
+
     double u_with_bnd(int x, int y);
     double v_with_bnd(int x, int y);
     double T_with_bnd(int x, int y);
@@ -56,7 +68,7 @@ private:
 
 private:
     static const double _g;
-    static const double _rho0;
+    static const double _rho0;  // TODO: variable rho
     // Grid resolution
     int _nx, _ny;
     // Cell size 
@@ -77,14 +89,13 @@ private:
     std::vector<std::vector<double>> _u_nxt;    // next step velocity x
     std::vector<std::vector<double>> _v_nxt;    // next step velocity y
     std::vector<std::vector<double>> _T;    // temperature
-public:
+public: // for rendering
     std::vector<std::vector<double>> _s;    // concentration
 private:
     std::vector<std::vector<double>> _T_nxt;    // next step temperature
     std::vector<std::vector<double>> _s_nxt;    // next step concentration
     // For CFL 
     double _s_max, _dT_max, _u_max, _v_max; 
-    Viewer2D _viewer;
 };
 
 #endif // SIMULATE_2D_SMOKE_H

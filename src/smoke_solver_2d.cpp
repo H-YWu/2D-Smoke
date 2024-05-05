@@ -21,8 +21,7 @@ SmokeSolver2D::SmokeSolver2D(
     double alpha, double beta,
     double ambient_T, double ambient_s,
     double wind_u, double wind_v,
-    double rate_T, double rate_s, double T_target,
-    int render_cell_size
+    double rate_T, double rate_s, double T_target
 )
     : _nx(grid_width), _ny(grid_height), _dx(dx)
     , _alpha(alpha), _beta(1.0/ambient_T)
@@ -41,7 +40,6 @@ SmokeSolver2D::SmokeSolver2D(
     , _T_nxt(grid_width, std::vector<double>(grid_height))
     , _s_nxt(grid_width, std::vector<double>(grid_height))
     , _s_max(_amb_s), _dT_max(0.0), _u_max(wind_u), _v_max(wind_v)
-    , _viewer(Viewer2D(grid_width, grid_height, render_cell_size))
 {
     init();
 }
@@ -101,11 +99,6 @@ void SmokeSolver2D::step() {
     step_source(dt);
 }
 
-void SmokeSolver2D::render() {
-    _viewer.render(_s);
-}
-
-
 void SmokeSolver2D::CFL_dt(double &dt) {
     int C = 5;
     double dt_max_x = dt, dt_max_y = dt;
@@ -125,43 +118,43 @@ void SmokeSolver2D::step_source(double dt) {
     }
 }
 
-void SmokeSolver2D::advect(QuantityType qt, double dt) {
+void SmokeSolver2D::advect(FieldType ft, double dt) {
     int nx = _nx, ny = _ny;
-    if (qt == U) nx ++;
-    else if (qt == V) ny ++;
+    if (ft == U) nx ++;
+    else if (ft == V) ny ++;
 
     for (int x = 0; x < nx; x ++) {
         for (int y = 0; y < ny; y ++) {
             double x_P, y_P;
             // Default: Backward Euler
             // TODO: integration method select
-            backward_Euler(qt, x, y, dt, x_P, y_P);
+            backward_Euler(ft, x, y, dt, x_P, y_P);
             // TODO: interpolation method select
-            if (qt == U || qt == V) {
+            if (ft == U || ft == V) {
                 double u_P, v_P;
                 blerp_uv(x_P, y_P, u_P, v_P);
-                if (qt == U) _u_nxt[x][y] = u_P;
-                else if (qt == V) _v_nxt[x][y] = v_P;
+                if (ft == U) _u_nxt[x][y] = u_P;
+                else if (ft == V) _v_nxt[x][y] = v_P;
             }
             else {
                 int x_high = static_cast<int>(std::ceil(x_P));
                 int y_high = static_cast<int>(std::ceil(y_P));
                 // Boundary condition
                 if (x_P < 0 || x_P > _nx-1 || y_P < 0 || y_P > _ny-1) {
-                    if (qt == ST)
+                    if (ft == ST)
                         _T_nxt[x][y] = T_with_bnd(x_high, y_high);
-                    else if (qt == SS)
+                    else if (ft == SS)
                         _s_nxt[x][y] = s_with_bnd(x_high, y_high);
                 }
                 else {
                     double tx = (x_P-static_cast<double>(x_high-1))/1.0;
                     double ty = (y_P-static_cast<double>(y_high-1))/1.0;
-                    if (qt == ST)
+                    if (ft == ST)
                         _T_nxt[x][y] = blerp(
                             _T[x_high-1][y_high-1], _T[x_high][y_high-1],
                             _T[x_high][y_high-1], _T[x_high][y_high],
                             tx, ty);
-                    else if (qt == SS)
+                    else if (ft == SS)
                         _s_nxt[x][y] = blerp(
                             _s[x_high-1][y_high-1], _s[x_high][y_high-1],
                             _s[x_high][y_high-1], _s[x_high][y_high],
@@ -196,17 +189,17 @@ void SmokeSolver2D::project(double dt) {
     update_uv_incompressible(dt);
 }
 
-void SmokeSolver2D::backward_Euler(QuantityType qt, int x_G, int y_G, double dt, double &x_P, double &y_P) {
+void SmokeSolver2D::backward_Euler(FieldType ft, int x_G, int y_G, double dt, double &x_P, double &y_P) {
     double u_G, v_G;
-    cell_uv(qt, x_G, y_G, u_G, v_G);
+    cell_uv(ft, x_G, y_G, u_G, v_G);
 
     x_P = x_G - dt * u_G;
     y_P = y_G - dt * v_G;
 }
 
-void SmokeSolver2D::RK2(QuantityType qt, int x_G, int y_G, double dt, double &x_P, double &y_P) {
+void SmokeSolver2D::RK2(FieldType ft, int x_G, int y_G, double dt, double &x_P, double &y_P) {
     double u_G, v_G;
-    cell_uv(qt, x_G, y_G, u_G, v_G);
+    cell_uv(ft, x_G, y_G, u_G, v_G);
 
     double x_mid = x_G - 0.5 * dt * u_G;
     double y_mid = y_G - 0.5 * dt * v_G;
@@ -356,24 +349,24 @@ void SmokeSolver2D::blerp_uv(double x, double y, double &u, double &v) {
     v = blerp(v_cell[0][0], v_cell[1][0], v_cell[0][1], v_cell[1][1], a, b);
 }
 
-void SmokeSolver2D::cell_uv(QuantityType qt, int x_G, int y_G, double &u_G, double &v_G) {
-    if (qt == U) {
-        u_G = _u[x_G][y_G];
-        v_G = 0.25 * (
-            v_with_bnd(x_G-1, y_G) + v_with_bnd(x_G-1, y_G+1) +
-            v_with_bnd(x_G, y_G) + v_with_bnd(x_G, y_G+1)
+void SmokeSolver2D::cell_uv(FieldType ft, int x, int y, double &u, double &v) {
+    if (ft == U) {
+        u = _u[x][y];
+        v = 0.25 * (
+            v_with_bnd(x-1, y) + v_with_bnd(x-1, y+1) +
+            v_with_bnd(x, y) + v_with_bnd(x, y+1)
         );
     }
-    else if (qt == V) {
-        u_G = 0.25 * (
-            u_with_bnd(x_G-1, y_G) + u_with_bnd(x_G-1, y_G+1) +
-            u_with_bnd(x_G, y_G) + u_with_bnd(x_G, y_G+1)
+    else if (ft == V) {
+        u = 0.25 * (
+            u_with_bnd(x-1, y) + u_with_bnd(x-1, y+1) +
+            u_with_bnd(x, y) + u_with_bnd(x, y+1)
         );
-        v_G = _v[x_G][y_G];
+        v = _v[x][y];
     }
     else {
-        u_G = 0.5 * (_u[x_G][y_G] + _u[x_G+1][y_G]);
-        v_G = 0.5 * (_v[x_G][y_G] + _v[x_G][y_G+1]);
+        u = 0.5 * (_u[x][y] + _u[x+1][y]);
+        v = 0.5 * (_v[x][y] + _v[x][y+1]);
     }
 }
 

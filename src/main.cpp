@@ -57,8 +57,8 @@ int main(int, char**)
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // 3.0+ only
 #endif
 
-    int window_w = grid_w * render_cell_sz;
-    int window_h = grid_h * render_cell_sz;
+    int window_w = grid_w;
+    int window_h = grid_h;
 
     // Create window with graphics context
     GLFWwindow* window = glfwCreateWindow(window_w, window_h, "Dear ImGui GLFW+OpenGL3 example", nullptr, nullptr);
@@ -85,7 +85,8 @@ int main(int, char**)
 #endif
     ImGui_ImplOpenGL3_Init(glsl_version);
 
-    // Generating directory name with current time
+    // Generating directory storing frames
+    //  with current time as name
     time_t rawtime;
     struct tm * timeinfo;
     char dirname[256];
@@ -99,13 +100,13 @@ int main(int, char**)
     sprintf(mkdir_cmd, "mkdir -p %s", dirname);
     system(mkdir_cmd);
 
+    // Mix the smoke color to the background (white) color
     auto mix_to_white = [](int component, double ratio) {
         int x = 100-std::min(static_cast<int>(ratio*100+0.5), 100);
         int rounded = std::min((((100-x)*component+x*255)/100), 255);
         int clipped = std::max(0, std::min(rounded, 255));
         return static_cast<unsigned char>(clipped);
     };
-
 
     // Smoke solver
     SmokeSolver2D smoke_solver(grid_w, grid_h, dx);
@@ -145,15 +146,11 @@ int main(int, char**)
         int display_w, display_h;
         glfwGetFramebufferSize(window, &display_w, &display_h);
         glViewport(0, 0, display_w, display_h);
-        // glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
         glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
-
-        // smoke_solver.render();
-
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-        // Write this frame to png
+        // Write this frame to .png
         unsigned char* image_data = (unsigned char*)malloc(grid_w * grid_h * 3);
         for (int y = 0; y < grid_h; y ++) {
             for (int x = 0; x < grid_w; x ++) {
@@ -164,7 +161,6 @@ int main(int, char**)
                 image_data[index + 2] = mix_to_white(204, d);   // Blue
             }
         }
-        // Write image to file
         char filename[256];
         sprintf(filename, "%d.png", frame);
         char filepath[512];
@@ -172,6 +168,7 @@ int main(int, char**)
         stbi_write_png(filepath, grid_w, grid_h, 3, image_data, grid_w * 3);
         // Free memory
         free(image_data);
+        // Next frame
         frame ++;
 
         glfwSwapBuffers(window);
